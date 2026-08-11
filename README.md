@@ -26,7 +26,7 @@ graph TD
     K8s["Kubernetes Kubelet / CI/CD Gate"] -->|Liveness /health/live<br/>Readiness /health/ready| NodeService
     K8s -->|Liveness /health/live<br/>Readiness /health/ready| PythonService
 
-    subgraph NodeServiceBox [Node.js Microservice (Port 3000)]
+    subgraph NodeServiceBox["Node.js Microservice (Port 3000)"]
         NodeAPI["Express REST API"]
         NodeWS["WebSocket Server (Event Stream)"]
         NodeHealth["/health, /health/live, /health/ready"]
@@ -34,7 +34,7 @@ graph TD
         NodeStatic["Real-Time Security Dashboard UI"]
     end
 
-    subgraph PythonServiceBox [Python Microservice (Port 8000)]
+    subgraph PythonServiceBox["Python Microservice (Port 8000)"]
         PyFastAPI["FastAPI Async Engine"]
         ThreatEngine["Heuristic Threat & Anomaly Detection"]
         PyHealth["/health, /health/live, /health/ready"]
