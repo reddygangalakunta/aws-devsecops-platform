@@ -1,0 +1,148 @@
+name: DevSecOps CI/CD Security Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # ==========================================
+  # Stage 1: SAST, Linting & Unit Testing
+  # ==========================================
+  test-and-lint:
+    name: Code Quality & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Python Microservice Checks
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python Dependencies & Test
+        run: |
+          cd services/python-service
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          PYTHONPATH=. pytest -v tests/
+
+      # Node.js Microservice Checks
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Node.js Dependencies & Test
+        run: |
+          cd services/node-service
+          npm ci
+          npm test
+
+  # ==========================================
+  # Stage 2: Software Composition Analysis (SCA)
+  # ==========================================
+  security-audit:
+    name: Dependency Vulnerability Audit (SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Audit Node.js Dependencies
+        run: |
+          cd services/node-service
+          npm audit --audit-level=high || true
+
+      - name: Audit Python Dependencies
+        run: |
+          cd services/python-service
+          pip install pip-audit
+          pip-audit -r requirements.txt || true
+
+  # ==========================================
+  # Stage 3: Container Build & Trivy Security Scan
+  # ==========================================
+  container-security-scan:
+    name: Container Build & Trivy Scan
+    runs-on: ubuntu-latest
+    needs: [test-and-lint, security-audit]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build Node.js Image
+      - name: Build Node.js Gateway Image
+        run: |
+          docker build -t devsecops/node-gateway:local services/node-service
+
+      # Build Python Image
+      - name: Build Python Analytics Image
+        run: |
+          docker build -t devsecops/python-threat:local services/python-service
+
+      # Trivy Container Vulnerability Scan
+      - name: Run Trivy Vulnerability Scanner on Node Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'devsecops/node-gateway:local'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy Vulnerability Scanner on Python Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'devsecops/python-threat:local'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  # ==========================================
+  # Stage 4: Dynamic Health & Probes Gate
+  # ==========================================
+  health-probe-verification:
+    name: Health & Metrics Endpoint Verification Gate
+    runs-on: ubuntu-latest
+    needs: [container-security-scan]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Spin Up Docker Compose Environment
+        run: |
+          docker compose up -d
+          echo "Waiting 15 seconds for containers to initialize..."
+          sleep 15
+
+      - name: Verify Python Microservice /health and /metrics
+        run: |
+          echo "Checking Python /health/live..."
+          curl --fail -s http://localhost:8000/health/live | grep -q "alive"
+          echo "Checking Python /health..."
+          curl --fail -s http://localhost:8000/health | grep -q "healthy"
+          echo "Checking Python /metrics..."
+          curl --fail -s http://localhost:8000/metrics | grep -q "python_http_requests_total"
+
+      - name: Verify Node.js Microservice /health and /metrics
+        run: |
+          echo "Checking Node.js /health/live..."
+          curl --fail -s http://localhost:3000/health/live | grep -q "alive"
+          echo "Checking Node.js /health..."
+          curl --fail -s http://localhost:3000/health | grep -q "healthy"
+          echo "Checking Node.js /metrics..."
+          curl --fail -s http://localhost:3000/metrics | grep -q "node_http_requests_total"
+
+      - name: Teardown Compose
+        if: always()
+        run: docker compose down

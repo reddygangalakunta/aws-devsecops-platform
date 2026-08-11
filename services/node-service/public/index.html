@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudGuard | DevSecOps Real-Time Operations Platform</title>
+  <meta name="description" content="Real-time DevSecOps microservices platform with Node.js, Python FastAPI, Prometheus telemetry, and WebSocket live streaming.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="background-glow glow-1"></div>
+  <div class="background-glow glow-2"></div>
+
+  <div class="app-container">
+    <!-- Top Navigation -->
+    <header class="header glass-panel">
+      <div class="logo-group">
+        <div class="shield-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">CloudGuard <span class="badge-devsecops">DevSecOps</span></h1>
+          <p class="brand-subtitle">Real-Time Telemetry & Threat Analytics Platform</p>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <div class="status-pill" id="ws-status-pill">
+          <span class="status-dot dot-pulse" id="ws-status-dot"></span>
+          <span id="ws-status-text">Connecting WebSocket...</span>
+        </div>
+
+        <div class="endpoint-links">
+          <a href="/health" target="_blank" class="nav-link" id="link-health" title="View Node.js Health Status">
+            <span class="indicator-icon">🩺</span> /health
+          </a>
+          <a href="/metrics" target="_blank" class="nav-link" id="link-metrics" title="Prometheus Metrics Scrape">
+            <span class="indicator-icon">📊</span> /metrics
+          </a>
+          <a href="http://localhost:8000/docs" target="_blank" class="nav-link" id="link-python-docs" title="Python FastAPI Docs">
+            <span class="indicator-icon">⚡</span> Python API
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- KPI Metric Cards Grid -->
+    <section class="kpi-grid">
+      <div class="kpi-card glass-panel">
+        <div class="kpi-header">
+          <span class="kpi-title">TOTAL EVENTS PROCESSED</span>
+          <span class="kpi-icon">⚡</span>
+        </div>
+        <div class="kpi-value-container">
+          <span class="kpi-value" id="kpi-total-events">0</span>
+          <span class="kpi-delta positive" id="kpi-events-delta">+0/s</span>
+        </div>
+        <div class="kpi-footer">Ingested via Node.js Gateway</div>
+      </div>
+
+      <div class="kpi-card glass-panel danger-border">
+        <div class="kpi-header">
+          <span class="kpi-title">SECURITY THREATS DETECTED</span>
+          <span class="kpi-icon">🛡️</span>
+        </div>
+        <div class="kpi-value-container">
+          <span class="kpi-value text-danger" id="kpi-threats-detected">0</span>
+          <span class="kpi-sub-badge danger" id="kpi-threat-rate">0% Risk</span>
+        </div>
+        <div class="kpi-footer">Flagged by Python Threat Engine</div>
+      </div>
+
+      <div class="kpi-card glass-panel">
+        <div class="kpi-header">
+          <span class="kpi-title">AVG RISK SCORE</span>
+          <span class="kpi-icon">📈</span>
+        </div>
+        <div class="kpi-value-container">
+          <span class="kpi-value" id="kpi-avg-risk">0.0</span>
+          <span class="kpi-unit">/ 100</span>
+        </div>
+        <div class="risk-bar-track">
+          <div class="risk-bar-fill" id="kpi-risk-bar" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card glass-panel">
+        <div class="kpi-header">
+          <span class="kpi-title">MICROSERVICES HEALTH</span>
+          <span class="kpi-icon">🩺</span>
+        </div>
+        <div class="service-health-list">
+          <div class="service-health-item">
+            <span class="service-name">Node.js Gateway:</span>
+            <span class="status-tag status-up" id="node-health-tag">UP (200 OK)</span>
+          </div>
+          <div class="service-health-item">
+            <span class="service-name">Python Analytics:</span>
+            <span class="status-tag status-up" id="python-health-tag">UP (Port 8000)</span>
+          </div>
+        </div>
+        <div class="kpi-footer" id="health-uptime-text">Uptime: 0s</div>
+      </div>
+    </section>
+
+    <!-- Main Content Area: Left = Event Generator, Right = Live Stream -->
+    <div class="main-grid">
+      <!-- Left Column: Interactive Event Simulation -->
+      <div class="left-col">
+        <div class="glass-panel panel-content">
+          <div class="panel-header">
+            <h2><span class="icon">🚀</span> Ingest Real-Time Events</h2>
+            <button id="btn-auto-stream" class="btn btn-secondary">
+              <span class="btn-icon">⚡</span> Auto Stream: <span id="auto-stream-state">OFF</span>
+            </button>
+          </div>
+          <p class="panel-desc">Trigger real-time telemetry into the Node.js ingestion gateway. Events are analyzed asynchronously by the Python ML/Heuristic engine and broadcasted to clients.</p>
+
+          <div class="preset-buttons-grid">
+            <button class="preset-btn benign" id="btn-preset-benign">
+              <span class="preset-badge">Normal</span>
+              <span class="preset-name">Benign API Request</span>
+              <span class="preset-detail">GET /api/v1/dashboard</span>
+            </button>
+
+            <button class="preset-btn threat-sqli" id="btn-preset-sqli">
+              <span class="preset-badge badge-threat">Attack</span>
+              <span class="preset-name">SQL Injection Attack</span>
+              <span class="preset-detail">' UNION SELECT * FROM users --</span>
+            </button>
+
+            <button class="preset-btn threat-xss" id="btn-preset-xss">
+              <span class="preset-badge badge-threat">Attack</span>
+              <span class="preset-name">XSS Script Injection</span>
+              <span class="preset-detail">&lt;script&gt;alert(cookie)&lt;/script&gt;</span>
+            </button>
+
+            <button class="preset-btn threat-auth" id="btn-preset-auth">
+              <span class="preset-badge badge-warn">Brute Force</span>
+              <span class="preset-name">Auth Attack Surge</span>
+              <span class="preset-detail">12 failed attempts / 3s</span>
+            </button>
+
+            <button class="preset-btn threat-financial" id="btn-preset-financial">
+              <span class="preset-badge badge-warn">Anomaly</span>
+              <span class="preset-name">High-Value Transfer</span>
+              <span class="preset-detail">Wire transfer $85,000.00</span>
+            </button>
+
+            <button class="preset-btn threat-path" id="btn-preset-path">
+              <span class="preset-badge badge-threat">Exploit</span>
+              <span class="preset-name">Path Traversal Probe</span>
+              <span class="preset-detail">GET ../../etc/passwd</span>
+            </button>
+          </div>
+
+          <!-- Custom Event Form -->
+          <details class="custom-event-details">
+            <summary class="custom-event-summary">⚙️ Custom Payload Builder</summary>
+            <form id="custom-event-form" class="custom-event-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="input-event-type">Event Type</label>
+                  <select id="input-event-type" class="form-control">
+                    <option value="api_access">api_access</option>
+                    <option value="sql_query">sql_query</option>
+                    <option value="auth_attempt">auth_attempt</option>
+                    <option value="transaction">transaction</option>
+                    <option value="file_upload">file_upload</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="input-source-ip">Source IP</label>
+                  <input type="text" id="input-source-ip" class="form-control" value="192.168.1.150" required>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="input-payload">Payload (JSON)</label>
+                <textarea id="input-payload" class="form-control code-font" rows="3">{"path": "/api/v1/auth/login", "user_agent": "Mozilla/5.0"}</textarea>
+              </div>
+              <button type="submit" class="btn btn-primary btn-full" id="btn-send-custom">
+                Send to Ingestion Gateway (POST /api/v1/events)
+              </button>
+            </form>
+          </details>
+        </div>
+
+        <!-- DevSecOps Telemetry & Probes Reference -->
+        <div class="glass-panel panel-content devsecops-box">
+          <h3><span class="icon">🔒</span> DevSecOps & Kubernetes Probes</h3>
+          <div class="probe-list">
+            <div class="probe-item">
+              <code>GET /health</code>
+              <span class="probe-desc">Aggregated health for CI/CD pipeline verification</span>
+            </div>
+            <div class="probe-item">
+              <code>GET /health/live</code>
+              <span class="probe-desc">Kubernetes <code>livenessProbe</code> (Container restart trigger)</span>
+            </div>
+            <div class="probe-item">
+              <code>GET /health/ready</code>
+              <span class="probe-desc">Kubernetes <code>readinessProbe</code> (Service traffic router)</span>
+            </div>
+            <div class="probe-item">
+              <code>GET /metrics</code>
+              <span class="probe-desc">Prometheus telemetry exporter (HTTP, WebSockets, Threats)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Live Event Stream Table -->
+      <div class="right-col">
+        <div class="glass-panel panel-content event-stream-panel">
+          <div class="panel-header">
+            <h2><span class="icon">📡</span> Live Event Stream</h2>
+            <div class="stream-controls">
+              <span class="stream-count-badge" id="stream-count-badge">0 events</span>
+              <button class="btn btn-sm btn-outline" id="btn-clear-stream">Clear</button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="stream-table" id="stream-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Type</th>
+                  <th>Source IP</th>
+                  <th>Risk Score</th>
+                  <th>Threat Status</th>
+                  <th>Action / Details</th>
+                </tr>
+              </thead>
+              <tbody id="stream-table-body">
+                <tr class="empty-row" id="empty-state-row">
+                  <td colspan="6">Waiting for incoming telemetry events... Click a preset button on the left to test.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Event Detail Modal -->
+    <div class="modal-overlay" id="event-modal">
+      <div class="modal-card glass-panel">
+        <div class="modal-header">
+          <h3 id="modal-title">Event Inspection</h3>
+          <button class="modal-close" id="btn-modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <pre id="modal-json" class="code-font"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
